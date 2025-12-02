@@ -11,440 +11,287 @@ from io import StringIO
 # ==============================================================================
 st.set_page_config(page_title="Diseño Avanzado de Micropilotes", layout="wide", page_icon="🏗️")
 
-# Estilos CSS para mejorar la visualización de las pestañas
+# Estilos CSS para pestañas
 st.markdown("""
 <style>
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 10px;
-    }
+    .stTabs [data-baseweb="tab-list"] { gap: 10px; }
     .stTabs [data-baseweb="tab"] {
-        height: 50px;
-        white-space: pre-wrap;
-        background-color: #f0f2f6;
-        border-radius: 5px 5px 0px 0px;
-        gap: 1px;
-        padding-top: 10px;
-        padding-bottom: 10px;
+        height: 50px; white-space: pre-wrap; background-color: #f0f2f6;
+        border-radius: 5px 5px 0px 0px; gap: 1px; padding-top: 10px; padding-bottom: 10px;
     }
-    .stTabs [aria-selected="true"] {
-        background-color: #FFFFFF;
-        border-bottom: 2px solid #FF4B4B;
-    }
+    .stTabs [aria-selected="true"] { background-color: #FFFFFF; border-bottom: 2px solid #FF4B4B; }
 </style>
 """, unsafe_allow_html=True)
 
 st.title("🏗️ Sistema de Diseño de Micropilotes")
-st.markdown("Optimización de diseño y análisis geotécnico integrado.")
+st.markdown("Optimización de diseño, análisis de huella de carbono y transferencia de carga.")
 
-# Crear pestañas principales
 tab_diseno, tab_geo = st.tabs(["📐 Diseño & Optimización", "🌍 Correlaciones Geotécnicas (SPT)"])
 
 # ==============================================================================
 # PARÁMETROS FIJOS GLOBALES
 # ==============================================================================
-# Diámetros comerciales y su eficiencia (Velocidad)
 DIAMETROS_COM = {0.100: 1.00, 0.115: 0.95, 0.150: 0.90, 0.200: 0.85}
 LISTA_D = sorted(list(DIAMETROS_COM.keys()))
-
-# Restricciones de búsqueda
 MIN_MICROS = 3
 MAX_MICROS = 15
-RANGO_L = range(5, 36) # Buscamos de 5m hasta 35m
+RANGO_L = range(5, 36) 
 COSTO_PERF_BASE = 100
 
 # Factores Ambientales
-FACTOR_CO2_CEMENTO = 0.90 # kg CO2e / kg
-FACTOR_CO2_PERF = 15.0    # kg CO2e / m
-FACTOR_CO2_ACERO = 1.85   # kg CO2e / kg
-DENSIDAD_ACERO = 7850.0   # kg/m3
-DENSIDAD_CEMENTO = 3150.0 # kg/m3
+FACTOR_CO2_CEMENTO = 0.90
+FACTOR_CO2_PERF = 15.0
+FACTOR_CO2_ACERO = 1.85
+DENSIDAD_ACERO = 7850.0
+DENSIDAD_CEMENTO = 3150.0
+FY_ACERO_KPA = 500000.0 # 500 MPa
 
-# Resistencia del Acero (Para cálculo simplificado de área)
-FY_ACERO_KPA = 500000.0 # 500 MPa (Ej. Acero N80 o barras de alta resistencia)
-
-# Colores para gráficos
-COLORES_ESTRATOS = ["#D7BDE2", "#A9CCE3", "#A3E4D7", "#F9E79F", "#F5B7B1", "#D2B4DE", "#AED6F1", "#A2D9CE", "#F7DC6F", "#F1948A"]
+COLORES_ESTRATOS = ["#D7BDE2", "#A9CCE3", "#A3E4D7", "#F9E79F", "#F5B7B1", "#D2B4DE", "#AED6F1", "#A2D9CE"]
 
 # ==============================================================================
 # ---------------------- PESTAÑA 1: DISEÑO & OPTIMIZACIÓN ----------------------
 # ==============================================================================
 with tab_diseno:
-    # ==========================================
-    # 1. BARRA LATERAL (INPUTS DE DISEÑO)
-    # ==========================================
+    # 1. BARRA LATERAL
     with st.sidebar:
         st.header("1. Definición de Estratigrafía")
-        
-        num_capas = st.slider("Número de Capas de Suelo", min_value=1, max_value=10, value=3)
+        num_capas = st.slider("Número de Capas", 1, 8, 3)
         
         ESTRATOS = []
         z_acumulada = 0.0
         
-        with st.expander("Configurar Capas (Espesor, Adherencia, Expansión)", expanded=True):
+        with st.expander("Configurar Capas", expanded=True):
             for i in range(num_capas):
                 st.markdown(f"**--- Capa {i+1} ---**")
                 c1, c2, c3 = st.columns(3)
-                espesor = c1.number_input(f"Espesor C{i+1} (m)", value=3.0 if i==0 else 5.0, step=0.5, key=f"esp_{i}")
-                qs = c2.number_input(f"Adherencia qs C{i+1} (kPa)", value=40.0 + i*20.0, step=5.0, key=f"qs_{i}")
-                f_exp = c3.number_input(f"Factor Exp. C{i+1}", value=1.1 + i*0.05, step=0.1, min_value=1.0, max_value=3.0, key=f"fexp_{i}", help="Factor de sobreconsumo de grout en esta capa")
+                espesor = c1.number_input(f"Espesor (m)", value=3.0 if i==0 else 5.0, step=0.5, key=f"e{i}")
+                qs = c2.number_input(f"Adherencia qs (kPa)", value=40.0 + i*20.0, step=5.0, key=f"q{i}")
+                f_exp = c3.number_input(f"Fact. Exp.", value=1.1 + i*0.05, step=0.1, key=f"f{i}")
                 
                 z_acumulada += espesor
                 ESTRATOS.append({
-                    "espesor": espesor,
-                    "z_fin": z_acumulada,
-                    "qs": qs,
-                    "f_exp": f_exp,
+                    "espesor": espesor, "z_fin": z_acumulada, "qs": qs, "f_exp": f_exp,
                     "color": COLORES_ESTRATOS[i % len(COLORES_ESTRATOS)]
                 })
 
-        st.caption(f"Profundidad total definida: {z_acumulada:.1f} m")
+        st.caption(f"Prof. Total: {z_acumulada:.1f} m")
 
         st.header("2. Cargas y Seguridad")
-        CARGA_TON = st.number_input("Carga Total en Cabezal (Ton)", value=120.0, step=1.0)
-        FS_REQ = st.slider("Factor de Seguridad (Geotécnico)", 1.5, 3.0, 2.0, 0.1)
+        CARGA_TON = st.number_input("Carga Cabezal (Ton)", value=109.0, step=1.0)
+        FS_REQ = st.slider("Factor de Seguridad", 1.5, 3.0, 2.0, 0.1)
         
-        st.header("3. Materiales (Lechada)")
-        RELACION_AGUA_CEMENTO = st.slider("Relación A/C Lechada", 0.4, 0.6, 0.50, 0.05)
-        st.caption("Nota: El acero se calcula automáticamente asumiendo Fy=500MPa para soportar la carga actuante.")
-
+        st.header("3. Materiales")
+        RELACION_AGUA_CEMENTO = st.slider("Relación A/C", 0.4, 0.6, 0.50, 0.05)
+        
         st.divider()
-        calcular = st.button("🚀 CALCULAR DISEÑO OPTIMIZADO", type="primary")
+        calcular = st.button("🚀 CALCULAR DISEÑO", type="primary")
 
-    # ==========================================
-    # 2. FUNCIONES DE CÁLCULO (DISEÑO)
-    # ==========================================
+    # 2. FUNCIONES DE CÁLCULO
     def calc_capacidad_individual_dinamica(D, L_total, estratos_data):
-        """Calcula Q_ult integrando la fricción en los estratos definidos."""
-        Q_ult = 0
-        z_actual = 0
-        
+        Q_ult = 0; z_actual = 0
         for estrato in estratos_data:
             if z_actual >= L_total: break
-            
-            # El techo del estrato actual es z_actual
-            # El piso del estrato actual es estrato["z_fin"]
-            
-            # La profundidad efectiva en este estrato es el mínimo entre el piso del estrato y el largo total del micropilote
-            z_fondo_efectivo = min(estrato["z_fin"], L_total)
-            
-            # Espesor de micropilote DENTRO de este estrato
-            espesor_en_estrato = z_fondo_efectivo - z_actual
-            
-            if espesor_en_estrato > 0:
-                area_lateral = math.pi * D * espesor_en_estrato
-                Q_ult += area_lateral * estrato["qs"]
-                
-            z_actual = z_fondo_efectivo
-            
+            z_fondo = min(estrato["z_fin"], L_total)
+            espesor = z_fondo - z_actual
+            if espesor > 0:
+                Q_ult += (math.pi * D * espesor) * estrato["qs"]
+            z_actual = z_fondo
         return Q_ult
 
     def calc_volumenes_grout(D, L_total, estratos_data):
-        """Calcula volumen teórico y expandido basado en los factores de cada capa."""
-        vol_teo_total = 0
-        vol_exp_total = 0
-        z_actual = 0
-        area_perf = math.pi * (D/2)**2
-
+        vol_teo = 0; vol_exp = 0; z_actual = 0
+        area = math.pi * (D/2)**2
         for estrato in estratos_data:
             if z_actual >= L_total: break
-            
-            z_fondo_efectivo = min(estrato["z_fin"], L_total)
-            espesor_en_estrato = z_fondo_efectivo - z_actual
-            
-            if espesor_en_estrato > 0:
-                v_teo_capa = area_perf * espesor_en_estrato
-                v_exp_capa = v_teo_capa * estrato["f_exp"]
-                
-                vol_teo_total += v_teo_capa
-                vol_exp_total += v_exp_capa
-            
-            z_actual = z_fondo_efectivo
-            
-        return vol_teo_total, vol_exp_total
+            z_fondo = min(estrato["z_fin"], L_total)
+            espesor = z_fondo - z_actual
+            if espesor > 0:
+                v_t = area * espesor
+                vol_teo += v_t
+                vol_exp += v_t * estrato["f_exp"]
+            z_actual = z_fondo
+        return vol_teo, vol_exp
 
     def get_peso_cemento_m3(wc):
-        # kg cemento por m3 de lechada
         return 1.0 / (wc/1000.0 + 1.0/DENSIDAD_CEMENTO)
 
-    def calc_impacto_ambiental_simplificado(L_total, N_micros, vol_grout_exp_total, Q_act_kpa_por_pilote):
-        """
-        Calcula CO2. El acero se calcula para resistir Q_act con Fy=500MPa.
-        """
-        # 1. Acero (Estructural)
-        # Área necesaria = Carga Actuante / Fy
-        area_acero_necesaria_m2 = Q_act_kpa_por_pilote / FY_ACERO_KPA
-        vol_acero_total = area_acero_necesaria_m2 * L_total * N_micros
-        peso_acero_total = vol_acero_total * DENSIDAD_ACERO
+    def calc_impacto_ambiental(L_total, N, vol_grout_exp, Q_act_kpa):
+        area_acero = Q_act_kpa / FY_ACERO_KPA
+        vol_acero = area_acero * L_total * N
+        peso_acero = vol_acero * DENSIDAD_ACERO
         
-        # 2. Grout
-        # Asumimos que el volumen expandido calculado ya considera el llenado total.
-        # Restamos el volumen que ocupa el acero para no duplicar, aunque el factor de expansión suele cubrir esto.
-        # Para ser conservadores en CO2, usemos el vol_grout_exp_total directo para el cemento, 
-        # o restemos el acero si queremos ser más precisos en el volumen neto de mezcla.
-        # Vamos a restar el acero para ser consistentes físicamente.
-        vol_grout_neto = max(0, vol_grout_exp_total - vol_acero_total)
-        peso_cemento_total = vol_grout_neto * get_peso_cemento_m3(RELACION_AGUA_CEMENTO)
+        vol_grout_neto = max(0, vol_grout_exp - vol_acero)
+        peso_cemento = vol_grout_neto * get_peso_cemento_m3(RELACION_AGUA_CEMENTO)
         
-        # 3. Perforación
-        metros_perf_totales = L_total * N_micros
-        
-        # Cálculo total CO2
-        co2_total = (peso_acero_total*FACTOR_CO2_ACERO + peso_cemento_total*FACTOR_CO2_CEMENTO + metros_perf_totales*FACTOR_CO2_PERF) / 1000
-        return co2_total, area_acero_necesaria_m2 * 10000 # Devolver también cm2 de acero para referencia
+        co2 = (peso_acero*FACTOR_CO2_ACERO + peso_cemento*FACTOR_CO2_CEMENTO + (L_total*N)*FACTOR_CO2_PERF) / 1000
+        return co2, area_acero * 10000
 
-    def obtener_perfil_resistencia_grafico(D, L, estratos_data):
-        """Genera datos para graficar la curva de transferencia."""
-        z_points = [0]
-        q_points = [0]
-        z_actual = 0
-        q_acum = 0
-        
+    def obtener_perfil_resistencia(D, L, estratos_data):
+        z_points = [0]; q_points = [0]; z_act = 0; q_acum = 0
         for estrato in estratos_data:
-            if z_actual >= L: break
-            z_fondo_tramo = min(estrato["z_fin"], L)
-            espesor = z_fondo_tramo - z_actual
-            if espesor > 0:
-                q_tramo = (math.pi * D * espesor) * estrato["qs"]
-                q_acum += q_tramo
-                z_points.append(z_fondo_tramo)
-                q_points.append(q_acum)
-            z_actual = z_fondo_tramo
+            if z_act >= L: break
+            z_end = min(estrato["z_fin"], L)
+            esp = z_end - z_act
+            if esp > 0:
+                q_acum += (math.pi * D * esp) * estrato["qs"]
+                z_points.append(z_end); q_points.append(q_acum)
+            z_act = z_end
         return z_points, q_points
 
-    # ==========================================
-    # 3. LÓGICA PRINCIPAL (DISEÑO)
-    # ==========================================
+    # 3. EJECUCIÓN
     if calcular:
         CARGA_REQ_KN = CARGA_TON * 9.81
         resultados_raw = []
 
-        with st.spinner('Optimizando diseño según estratigrafía definida...'):
+        with st.spinner('Calculando...'):
             for D in LISTA_D:
-                # Ya no validamos recubrimiento aquí porque el acero no es input fijo.
-
                 for N in range(MIN_MICROS, MAX_MICROS + 1):
-                    Q_act_por_pilote_kn = CARGA_REQ_KN / N
-                    Q_req_geotec_por_pilote = Q_act_por_pilote_kn * FS_REQ
+                    Q_act_kn = CARGA_REQ_KN / N
+                    Q_req_geo = Q_act_kn * FS_REQ
                     
                     for L in RANGO_L:
-                        # 1. Capacidad Geotécnica Última
-                        Q_ult_geo = calc_capacidad_individual_dinamica(D, L, ESTRATOS)
+                        Q_ult = calc_capacidad_individual_dinamica(D, L, ESTRATOS)
                         
-                        # Verificar si cumple geotecnia
-                        if Q_ult_geo >= Q_req_geotec_por_pilote:
-                            FS_calc = Q_ult_geo / Q_act_por_pilote_kn
+                        if Q_ult >= Q_req_geo:
+                            FS = Q_ult / Q_act_kn
+                            v_teo, v_exp = calc_volumenes_grout(D, L, ESTRATOS)
+                            v_teo_tot = v_teo * N; v_exp_tot = v_exp * N
                             
-                            # 2. Cálculos Volumétricos (con expansión variable)
-                            v_teo_mic, v_exp_mic = calc_volumenes_grout(D, L, ESTRATOS)
-                            v_teo_total = v_teo_mic * N
-                            v_exp_total = v_exp_mic * N
+                            eff = DIAMETROS_COM[D]
+                            costo = (L * N * COSTO_PERF_BASE) / eff
                             
-                            # 3. Cálculos Económicos
-                            eficiencia = DIAMETROS_COM[D]
-                            costo_idx = (L * N * COSTO_PERF_BASE) / eficiencia
-                            
-                            # 4. Cálculo Ambiental (Acero simplificado)
-                            # Necesitamos la carga actuante en kPa para la función de acero
-                            Q_act_por_pilote_kpa = Q_act_por_pilote_kn # kN, y Fy está en kPa, la division da m2. Correcto.
-                            co2, area_acero_cm2 = calc_impacto_ambiental_simplificado(L, N, v_exp_total, Q_act_por_pilote_kpa)
+                            co2, acero_cm2 = calc_impacto_ambiental(L, N, v_exp_tot, Q_act_kn)
                             
                             resultados_raw.append({
-                                "D_val": D, "D_mm": int(D*1000),
-                                "N": N, "L_m": L, "L_Tot_m": L * N,
-                                "FS": FS_calc, 
-                                "Vol_Teo": v_teo_total, "Vol_Exp": v_exp_total,
-                                "Costo_Idx": costo_idx, "Eficiencia": eficiencia,
-                                "CO2_ton": co2,
-                                "Q_adm_geo": Q_ult_geo / FS_REQ / 9.81, # Ton
-                                "Q_act": Q_act_por_pilote_kn / 9.81,    # Ton
-                                "Acero_req_cm2": area_acero_cm2 # Dato informativo
+                                "D_val": D, "D_mm": int(D*1000), "N": N, "L_m": L, "L_Tot_m": L*N,
+                                "FS": FS, "Vol_Teo": v_teo_tot, "Vol_Exp": v_exp_tot,
+                                "Costo_Idx": costo, "Eficiencia": eff, "CO2_ton": co2,
+                                "Q_adm": Q_ult/FS_REQ/9.81, "Q_act": Q_act_kn/9.81,
+                                "Acero_cm2": acero_cm2
                             })
-                            break # Encontramos L mínima para este N y D
+                            break 
 
-        # --- VISUALIZACIÓN RESULTADOS DISEÑO ---
         if not resultados_raw:
-            st.error("No se encontraron soluciones. Intente aumentar la profundidad de los estratos, mejorar la adherencia o aumentar la cantidad máxima de micropilotes.")
+            st.error("No se encontraron soluciones.")
         else:
-            # Selección Estratégica Top 10
+            # Selección Top 10 Variada
             resultados_raw.sort(key=lambda x: x["Costo_Idx"])
             top_10 = []
             ids = set()
             
-            # Asegurar variedad de diámetros
             for d_target in LISTA_D:
-                cand = next((r for r in resultados_raw if r["D_val"] == d_target), None)
-                if cand:
-                    uid = f"{cand['D_mm']}-{cand['N']}-{cand['L_m']}"
-                    if uid not in ids: top_10.append(cand); ids.add(uid)
+                c = next((r for r in resultados_raw if r["D_val"] == d_target), None)
+                if c:
+                    uid = f"{c['D_mm']}-{c['N']}-{c['L_m']}"
+                    if uid not in ids: top_10.append(c); ids.add(uid)
             
-            # Rellenar
             for r in resultados_raw:
-                if len(top_10) >= 12: break # Mostremos hasta 12
+                if len(top_10) >= 10: break
                 uid = f"{r['D_mm']}-{r['N']}-{r['L_m']}"
                 if uid not in ids: top_10.append(r); ids.add(uid)
 
             top_10.sort(key=lambda x: x["Costo_Idx"])
             df = pd.DataFrame(top_10)
+            best = df.iloc[0]
 
             # --- DASHBOARD ---
-            best = df.iloc[0]
-            
-            # KPIs
-            st.subheader("🏆 Mejor Opción (Balance Costo/Eficiencia)")
-            k1, k2, k3, k4 = st.columns(4)
-            k1.metric("Configuración", f"{int(best['N'])} micros x Ø{int(best['D_mm'])}mm")
-            k2.metric("Longitud Total", f"{int(best['L_m'])} m/micro", f"Perf. Total: {best['L_Tot_m']}m")
-            k3.metric("Volumen Grout (Expandido)", f"{best['Vol_Exp']:.1f} m³", help="Suma de volúmenes considerando el factor de expansión de cada estrato.")
-            k4.metric("Huella CO2 Est.", f"{best['CO2_ton']:.1f} Ton", help="Basado en acero requerido para la carga (Fy=500MPa) y consumo de grout/diésel.")
-            
-            st.caption(f"Acero estructural requerido aprox. por micropilote: {best['Acero_req_cm2']:.1f} cm²")
-
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Mejor Opción", f"{int(best['N'])} x Ø{int(best['D_mm'])}mm")
+            c2.metric("Longitud", f"{int(best['L_m'])} m")
+            c3.metric("Volumen Grout", f"{best['Vol_Exp']:.1f} m³")
+            c4.metric("Huella CO2", f"{best['CO2_ton']:.1f} Ton")
             st.divider()
             
             col_graf, col_tabla = st.columns([1, 1.2])
             
-          with col_graf:
+            with col_graf:
                 st.subheader("📉 Transferencia de Carga")
                 fig_prof, ax_prof = plt.subplots(figsize=(8, 6))
                 
-                # ... (Aquí va el código del fondo de estratos, ese déjalo igual) ...
-                # Fondo estratos
+                # Fondo estratos (Rectángulos muy anchos para cubrir todo)
                 y_lim_plot = max([r['L_m'] for r in top_10]) + 2
                 prev_z = 0
                 for e in ESTRATOS:
                     h_layer = min(e["z_fin"], y_lim_plot) - prev_z
                     if h_layer > 0:
-                        rect = patches.Rectangle((0, prev_z), 5000, h_layer, color=e["color"], alpha=0.3)
+                        rect = patches.Rectangle((0, prev_z), 10000, h_layer, color=e["color"], alpha=0.3)
                         ax_prof.add_patch(rect)
-                        ax_prof.text(0.5, prev_z + h_layer/2, f"qs={int(e['qs'])}", color='#555555', va='center', fontsize=8)
+                        ax_prof.text(1, prev_z + h_layer/2, f"qs={int(e['qs'])}", color='#555', va='center', fontsize=8)
                     prev_z = e["z_fin"]
                     if prev_z >= y_lim_plot: break
 
-                # --- INICIO DE LA MODIFICACIÓN ---
+                # Curvas
                 diametros_vistos = set()
                 plotted_count = 0
-                max_x_val = 0 # Variable para rastrear la carga máxima
+                max_x_val = 0 # Variable para ajuste dinámico del eje X
                 
                 for i, row in df.iterrows():
                     if row['D_mm'] in diametros_vistos and plotted_count > 2: continue
                     
                     z_p, q_p = obtener_perfil_resistencia_grafico(row['D_val'], row['L_m'], ESTRATOS)
-                    q_p_adm_ton = [(q / FS_REQ) / 9.81 for q in q_p]
+                    q_adm_graf = [(q / FS_REQ) / 9.81 for q in q_p]
                     
-                    # Actualizamos el máximo valor encontrado para el eje X
-                    max_en_esta_curva = max(q_p_adm_ton)
-                    if max_en_esta_curva > max_x_val:
-                        max_x_val = max_en_esta_curva
+                    # Rastrear máximo para el eje X
+                    if max(q_adm_graf) > max_x_val: max_x_val = max(q_adm_graf)
                     
-                    label_str = f"Ø{row['D_mm']} (Qadm: {q_p_adm_ton[-1]:.0f}T)"
-                    ax_prof.plot(q_p_adm_ton, z_p, marker='o', markersize=4, linewidth=2, label=label_str, alpha=0.8 if i==0 else 0.5)
-                    
+                    label_str = f"Ø{row['D_mm']} (Qadm: {q_adm_graf[-1]:.0f}T)"
+                    ax_prof.plot(q_adm_graf, z_p, marker='o', markersize=4, linewidth=2, label=label_str, alpha=0.8 if i==0 else 0.5)
                     diametros_vistos.add(row['D_mm'])
                     plotted_count +=1
 
                 ax_prof.set_ylim(y_lim_plot, 0)
                 
-                # AQUÍ ESTÁ EL AJUSTE CLAVE:
-                # Fijamos el límite X al valor máximo encontrado + 10% de margen
+                # --- AJUSTE DINÁMICO DEL EJE X ---
                 if max_x_val > 0:
-                    ax_prof.set_xlim(0, max_x_val * 1.1)
+                    ax_prof.set_xlim(0, max_x_val * 1.15) # +15% de margen
                 
                 ax_prof.set_ylabel("Profundidad (m)")
                 ax_prof.set_xlabel("Capacidad Admisible Acumulada (Ton)")
                 ax_prof.legend(loc='lower right', fontsize=8)
                 ax_prof.grid(True, linestyle=':', alpha=0.5)
                 st.pyplot(fig_prof)
-                # --- FIN DE LA MODIFICACIÓN ---
+
             with col_tabla:
-                st.subheader("📋 Mejores Alternativas")
-                df_show = df[["D_mm", "N", "L_m", "L_Tot_m", "FS", "Q_adm_geo", "Q_act", "Vol_Exp", "CO2_ton"]].copy()
-                df_show.columns = ["Ø(mm)", "Cant", "L(m)", "Perf(m)", "FS", "Qadm(T)", "Qact(T)", "Grout(m³)", "CO2(T)"]
-                
+                st.subheader("📋 Top 10 Alternativas")
+                df_show = df[["D_mm", "N", "L_m", "L_Tot_m", "FS", "Q_adm", "Q_act", "Vol_Exp", "CO2_ton"]].copy()
+                df_show.columns = ["Ø(mm)", "Cant", "L(m)", "Perf(m)", "FS", "Qadm", "Qact", "Grout", "CO2"]
                 st.dataframe(
                     df_show.style.background_gradient(subset=["Perf(m)"], cmap="Blues_r")
-                           .background_gradient(subset=["CO2(T)"], cmap="YlGn_r")
-                           .format("{:.1f}", subset=["Qadm(T)", "Qact(T)", "Grout(m³)", "CO2(T)"])
+                           .background_gradient(subset=["CO2"], cmap="Greens_r")
+                           .format("{:.1f}", subset=["Qadm", "Qact", "Grout", "CO2"])
                            .format("{:.2f}", subset=["FS"]),
-                    use_container_width=True,
-                    height=400
+                    use_container_width=True, height=400
                 )
     else:
-        st.info("👈 Configure la estratigrafía y cargas en la barra lateral, luego presione 'CALCULAR'.")
+        st.info("👈 Configure estratos y presione calcular.")
 
 # ==============================================================================
-# ---------------------- PESTAÑA 2: CORRELACIONES GEOTÉCNICAS ------------------
+# ---------------------- PESTAÑA 2: CORRELACIONES SPT --------------------------
 # ==============================================================================
 with tab_geo:
-    st.header("🌍 Estimación de Adherencia ($q_s$) mediante SPT")
+    st.header("🌍 Correlación SPT -> Adherencia")
+    c1, c2 = st.columns([1, 1.5])
     
-    col_input, col_ref = st.columns([1, 1.5])
+    with c1:
+        st.write("Pegue sus datos (Profundidad, N):")
+        spt_input = st.text_area("Datos", value="1.5, 4\n3.0, 7\n4.5, 12\n6.0, 15\n9.0, 28\n12.0, 42", height=200)
+        k_val = st.slider("Factor K (qs = K * N)", 1.0, 6.0, 3.5, 0.1)
+        proc_spt = st.button("Graficar Correlación")
     
-    with col_input:
-        st.subheader("1. Ingreso de Datos SPT")
-        st.markdown("Pegue sus datos de sondeo (Profundidad, N_SPT) separados por coma o tabulación.")
-        
-        spt_data_raw = st.text_area("Datos (Profundidad [m], N_golpes)", height=300,
-                                    value="1.5, 4\n3.0, 7\n4.5, 12\n6.0, 15\n7.5, 22\n9.0, 28\n10.5, 35\n12.0, 42\n15.0, 50")
-        
-        st.subheader("2. Factor de Correlación (K)")
-        st.markdown(r"Modelo simplificado: $q_s (kPa) \approx K \cdot N_{SPT}$")
-        k_factor = st.slider("Factor K", min_value=1.0, max_value=10.0, value=3.5, step=0.5, 
-                             help="Valor típico entre 2 y 5 para inyección tipo A/B. Valores mayores para inyección repetida (tipo D).")
-        
-        process_spt = st.button("Procesar y Graficar")
-
-    with col_ref:
-        st.subheader("Referencia FHWA (NHI-05-039)")
+    with c2:
         st.markdown("""
-        Valores típicos de adherencia última ($q_s$) para micropilotes inyectados a gravedad (Tipo A):
-        
-        | Tipo de Suelo | Adherencia $q_s$ (kPa) |
-        | :--- | :--- |
-        | Arcilla Blanda / Limo | 20 - 60 |
-        | Arcilla Media / Limo Arenoso | 40 - 90 |
-        | Arcilla Dura / Arena Fina Densa | 80 - 150 |
-        | Arena Media-Densa / Grava | 100 - 250 |
-        | Roca Meteorizada / Esquisto | 200 - 500+ |
-        
-        *Nota: El uso de SPT es una aproximación grosera. Se recomienda usar datos de laboratorio (Su, phi) o pruebas de carga para diseños finales.*
+        **Guía FHWA (Grout Tipo A):**
+        * Arcillas/Limos: $q_s = 20-90$ kPa
+        * Arenas Densas: $q_s = 100-250$ kPa
         """)
-
-    st.divider()
-
-    if process_spt and spt_data_raw:
+    
+    if proc_spt and spt_input:
         try:
-            # Procesar datos
-            data_io = StringIO(spt_data_raw)
-            df_spt = pd.read_csv(data_io, names=["Profundidad", "N_SPT"], header=None, sep=r'[,\t]+', engine='python')
+            df_spt = pd.read_csv(StringIO(spt_input), names=["z", "N"], header=None)
+            df_spt["qs"] = df_spt["N"] * k_val
             
-            # Calcular qs estimado
-            df_spt["qs_est"] = df_spt["N_SPT"] * k_factor
-            
-            # Graficar
-            st.subheader("Resultados de Correlación")
-            fig_spt, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6), sharey=True)
-            
-            # Gráfica N-SPT
-            ax1.plot(df_spt["N_SPT"], df_spt["Profundidad"], marker='o', linestyle='-', color='blue', label='N-SPT')
-            ax1.set_ylim(df_spt["Profundidad"].max() + 2, 0)
-            ax1.set_title("Perfil N-SPT")
-            ax1.set_xlabel("N Golpes")
-            ax1.set_ylabel("Profundidad (m)")
-            ax1.grid(True, linestyle=':')
-            
-            # Gráfica qs estimado
-            ax2.plot(df_spt["qs_est"], df_spt["Profundidad"], marker='s', linestyle='-', color='red', label=f'qs = {k_factor}*N')
-            ax2.fill_betweenx(df_spt["Profundidad"], 0, df_spt["qs_est"], color='red', alpha=0.2)
-            ax2.set_title(f"Adherencia Estimada (K={k_factor})")
-            ax2.set_xlabel("qs Estimado (kPa)")
-            ax2.grid(True, linestyle=':')
-            ax2.legend()
-            
+            fig_spt, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5), sharey=True)
+            ax1.plot(df_spt["N"], df_spt["z"], 'b-o'); ax1.set_title("N-SPT"); ax1.invert_yaxis(); ax1.grid(True)
+            ax2.plot(df_spt["qs"], df_spt["z"], 'r-s'); ax2.set_title(f"Adherencia Estimada (K={k_val})"); ax2.grid(True)
             st.pyplot(fig_spt)
-            
-            st.markdown("✅ **Listo.** Use los valores de la gráfica roja para alimentar la pestaña de 'Diseño & Optimización'.")
-            
-        except Exception as e:
-            st.error(f"Error al procesar los datos. Asegúrese del formato:\n\n`Profundidad, N_valor`\n\nError detallado: {e}")
-
-
+        except: st.error("Formato incorrecto. Use: Profundidad, N")
