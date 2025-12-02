@@ -12,14 +12,6 @@ import gspread
 from google.oauth2.service_account import Credentials
 import datetime
 
-import streamlit as st
-import numpy as np
-import pandas as pd
-import math
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-from io import StringIO
-import re # Para validar email
 
 # ==============================================================================
 # CONFIGURACIÓN DE LA PÁGINA
@@ -518,13 +510,12 @@ with tab_geo:
         except Exception as e:
             st.error(f"Error al procesar los datos. Asegúrese del formato:\n\n`Profundidad, N_valor`\n\nError detallado: {e}")
 
-# 5. CONTROL DE FLUJO
+# CONTROL DE FLUJO (ROUTER)
 # ==============================================================================
-if 'usuario_registrado' not in st.session_state:
-    st.session_state['usuario_registrado'] = False
-
 if st.session_state['usuario_registrado']:
     app_principal()
 else:
     mostrar_registro()
+
+
 
