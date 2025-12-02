@@ -5,6 +5,67 @@ import math
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from io import StringIO
+import re # Para validar email
+
+# ==============================================================================
+# CONFIGURACIÓN DE LA PÁGINA
+# ==============================================================================
+st.set_page_config(page_title="Diseño Avanzado de Micropilotes", layout="wide", page_icon="🏗️")
+
+# ==============================================================================
+# 0. SISTEMA DE REGISTRO (EL MURO)
+# ==============================================================================
+# Inicializar estado de sesión si no existe
+if 'usuario_registrado' not in st.session_state:
+    st.session_state['usuario_registrado'] = False
+
+def mostrar_registro():
+    """Muestra la pantalla de bloqueo/registro"""
+    st.markdown("## 🔒 Acceso a Herramienta de Ingeniería")
+    st.info("Para acceder a la calculadora de optimización y huella de carbono, por favor regístrese.")
+    
+    with st.form("formulario_registro"):
+        col1, col2 = st.columns(2)
+        nombre = col1.text_input("Nombre Completo")
+        empresa = col2.text_input("Empresa / Universidad")
+        email = st.text_input("Correo Electrónico Corporativo")
+        cargo = st.selectbox("Cargo", ["Ingeniero Geotecnista", "Ingeniero Estructural", "Constructor/Residente", "Estudiante", "Otro"])
+        
+        # Checkbox de privacidad (Importante para GDPR/Leyes de datos)
+        acepto = st.checkbox("Acepto recibir información técnica relacionada.")
+        
+        submit = st.form_submit_button("🚀 INGRESAR AL SISTEMA")
+        
+        if submit:
+            # Validaciones simples
+            if not nombre or not email:
+                st.error("Por favor ingrese al menos su Nombre y Correo.")
+            elif "@" not in email or "." not in email:
+                st.error("El correo electrónico no parece válido.")
+            elif not acepto:
+                st.warning("Debe aceptar los términos para continuar.")
+            else:
+                # --- AQUÍ GUARDARÍAS LOS DATOS ---
+                # En una app real, aquí enviarías los datos a una base de datos (Google Sheets, Firebase, SQL)
+                # Por ahora, solo simulamos el éxito.
+                st.session_state['usuario_registrado'] = True
+                st.session_state['datos_usuario'] = {'nombre': nombre, 'email': email}
+                st.success(f"¡Bienvenido, {nombre}! Cargando sistema...")
+                st.rerun() # Recargar la página para mostrar la app
+
+# ==============================================================================
+# 1. APLICACIÓN PRINCIPAL (TU CÓDIGO ORIGINAL ENVUELTO)
+# ==============================================================================
+def app_principal():
+    # Mensaje de bienvenida personalizado en la barra lateral
+    with st.sidebar:
+        st.success(f"Sesión activa: **{st.session_state['datos_usuario']['nombre']}**")
+        if st.button("Cerrar Sesión"):
+            st.session_state['usuario_registrado'] = False
+            st.rerun()
+        st.markdown("---")
+
+
 
 # ==============================================================================
 # CONFIGURACIÓN DE LA PÁGINA
@@ -433,3 +494,9 @@ with tab_geo:
         except Exception as e:
             st.error(f"Error al procesar los datos. Asegúrese del formato:\n\n`Profundidad, N_valor`\n\nError detallado: {e}")
 
+# CONTROL DE FLUJO (ROUTER)
+# ==============================================================================
+if st.session_state['usuario_registrado']:
+    app_principal()
+else:
+    mostrar_registro()
