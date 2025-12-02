@@ -334,7 +334,7 @@ with tab_diseno:
                     plotted_count +=1
 
                 ax_prof.set_ylim(y_lim_plot, 0)
-                ax_prof.set_xlim(0, None)
+                ax_prof.set_xlim(0, 150)
                 ax_prof.set_ylabel("Profundidad (m)")
                 ax_prof.set_xlabel("Capacidad Admisible Acumulada (Ton)")
                 ax_prof.legend(loc='lower right', fontsize=8)
@@ -432,3 +432,4 @@ with tab_geo:
             
         except Exception as e:
             st.error(f"Error al procesar los datos. Asegúrese del formato:\n\n`Profundidad, N_valor`\n\nError detallado: {e}")
+
