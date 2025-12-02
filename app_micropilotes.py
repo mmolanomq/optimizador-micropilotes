@@ -7,10 +7,6 @@ import matplotlib.patches as patches
 from io import StringIO
 import re # Para validar email
 
-import streamlit as st
-import gspread
-from google.oauth2.service_account import Credentials
-import datetime
 
 
 # ==============================================================================
@@ -42,22 +38,8 @@ def mostrar_registro():
         
         submit = st.form_submit_button("🚀 INGRESAR AL SISTEMA")
         
-        if submit:
-            # Validaciones simples
-            if not nombre or not email:
-                st.error("Por favor ingrese al menos su Nombre y Correo.")
-            elif "@" not in email or "." not in email:
-                st.error("El correo electrónico no parece válido.")
-            elif not acepto:
-                st.warning("Debe aceptar los términos para continuar.")
-            else:
-                # --- AQUÍ GUARDARÍAS LOS DATOS ---
-                # En una app real, aquí enviarías los datos a una base de datos (Google Sheets, Firebase, SQL)
-                # Por ahora, solo simulamos el éxito.
-                st.session_state['usuario_registrado'] = True
-                st.session_state['datos_usuario'] = {'nombre': nombre, 'email': email}
-                st.success(f"¡Bienvenido, {nombre}! Cargando sistema...")
-                st.rerun() # Recargar la página para mostrar la app
+
+
 # ==============================================================================
 # 4. APLICACIÓN PRINCIPAL (EL PREMIO)
 # ==============================================================================
@@ -516,6 +498,7 @@ if st.session_state['usuario_registrado']:
     app_principal()
 else:
     mostrar_registro()
+
 
 
 
