@@ -228,8 +228,8 @@ with tab_diseno:
                 for i, row in df.iterrows():
                     if row['D_mm'] in diametros_vistos and plotted_count > 2: continue
                     
-                    z_p, q_p = obtener_perfil_resistencia_grafico(row['D_val'], row['L_m'], ESTRATOS)
-                    q_adm_graf = [(q / FS_REQ) / 9.81 for q in q_p]
+                     z_p, q_p = obtener_perfil_resistencia_grafico(row['D_val'], row['L_m'], ESTRATOS)
+                     q_adm_graf = [(q / FS_REQ) / 9.81 for q in q_p]
                     
                     # Rastrear máximo para el eje X
                     if max(q_adm_graf) > max_x_val: max_x_val = max(q_adm_graf)
@@ -295,3 +295,4 @@ with tab_geo:
             ax2.plot(df_spt["qs"], df_spt["z"], 'r-s'); ax2.set_title(f"Adherencia Estimada (K={k_val})"); ax2.grid(True)
             st.pyplot(fig_spt)
         except: st.error("Formato incorrecto. Use: Profundidad, N")
+
