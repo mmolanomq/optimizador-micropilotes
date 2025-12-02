@@ -303,44 +303,58 @@ with tab_diseno:
             
             col_graf, col_tabla = st.columns([1, 1.2])
             
-            with col_graf:
+          with col_graf:
                 st.subheader("📉 Transferencia de Carga")
                 fig_prof, ax_prof = plt.subplots(figsize=(8, 6))
                 
+                # ... (Aquí va el código del fondo de estratos, ese déjalo igual) ...
                 # Fondo estratos
                 y_lim_plot = max([r['L_m'] for r in top_10]) + 2
                 prev_z = 0
                 for e in ESTRATOS:
                     h_layer = min(e["z_fin"], y_lim_plot) - prev_z
                     if h_layer > 0:
-                        rect = patches.Rectangle((0, prev_z), 2000, h_layer, color=e["color"], alpha=0.3)
+                        rect = patches.Rectangle((0, prev_z), 5000, h_layer, color=e["color"], alpha=0.3)
                         ax_prof.add_patch(rect)
-                        ax_prof.text(5, prev_z + h_layer/2, f"qs={int(e['qs'])} | F.Exp={e['f_exp']}", color='#555555', va='center', fontsize=8)
+                        ax_prof.text(0.5, prev_z + h_layer/2, f"qs={int(e['qs'])}", color='#555555', va='center', fontsize=8)
                     prev_z = e["z_fin"]
                     if prev_z >= y_lim_plot: break
 
-                # Curvas
+                # --- INICIO DE LA MODIFICACIÓN ---
                 diametros_vistos = set()
                 plotted_count = 0
+                max_x_val = 0 # Variable para rastrear la carga máxima
+                
                 for i, row in df.iterrows():
                     if row['D_mm'] in diametros_vistos and plotted_count > 2: continue
                     
                     z_p, q_p = obtener_perfil_resistencia_grafico(row['D_val'], row['L_m'], ESTRATOS)
                     q_p_adm_ton = [(q / FS_REQ) / 9.81 for q in q_p]
                     
+                    # Actualizamos el máximo valor encontrado para el eje X
+                    max_en_esta_curva = max(q_p_adm_ton)
+                    if max_en_esta_curva > max_x_val:
+                        max_x_val = max_en_esta_curva
+                    
                     label_str = f"Ø{row['D_mm']} (Qadm: {q_p_adm_ton[-1]:.0f}T)"
                     ax_prof.plot(q_p_adm_ton, z_p, marker='o', markersize=4, linewidth=2, label=label_str, alpha=0.8 if i==0 else 0.5)
+                    
                     diametros_vistos.add(row['D_mm'])
                     plotted_count +=1
 
                 ax_prof.set_ylim(y_lim_plot, 0)
-                ax_prof.set_xlim(0, 150)
+                
+                # AQUÍ ESTÁ EL AJUSTE CLAVE:
+                # Fijamos el límite X al valor máximo encontrado + 10% de margen
+                if max_x_val > 0:
+                    ax_prof.set_xlim(0, max_x_val * 1.1)
+                
                 ax_prof.set_ylabel("Profundidad (m)")
                 ax_prof.set_xlabel("Capacidad Admisible Acumulada (Ton)")
                 ax_prof.legend(loc='lower right', fontsize=8)
                 ax_prof.grid(True, linestyle=':', alpha=0.5)
                 st.pyplot(fig_prof)
-
+                # --- FIN DE LA MODIFICACIÓN ---
             with col_tabla:
                 st.subheader("📋 Mejores Alternativas")
                 df_show = df[["D_mm", "N", "L_m", "L_Tot_m", "FS", "Q_adm_geo", "Q_act", "Vol_Exp", "CO2_ton"]].copy()
@@ -432,4 +446,5 @@ with tab_geo:
             
         except Exception as e:
             st.error(f"Error al procesar los datos. Asegúrese del formato:\n\n`Profundidad, N_valor`\n\nError detallado: {e}")
+
 
