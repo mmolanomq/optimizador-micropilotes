@@ -12,115 +12,60 @@ import gspread
 from google.oauth2.service_account import Credentials
 import datetime
 
+import streamlit as st
+import numpy as np
+import pandas as pd
+import math
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+from io import StringIO
+import re # Para validar email
+
 # ==============================================================================
-# 1. CONFIGURACIÓN DE LA PÁGINA
+# CONFIGURACIÓN DE LA PÁGINA
 # ==============================================================================
 st.set_page_config(page_title="Diseño Avanzado de Micropilotes", layout="wide", page_icon="🏗️")
 
 # ==============================================================================
-# 2. CONEXIÓN CON GOOGLE SHEETS
+# 0. SISTEMA DE REGISTRO (EL MURO)
 # ==============================================================================
-def conectar_google_sheets():
-    """Conecta con la API de Google usando st.secrets"""
-    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    
-    # Crear credenciales desde los secretos de Streamlit
-    creds_dict = st.secrets["gcp_service_account"]
-    creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
-    client = gspread.authorize(creds)
-    
-    # Abrir la hoja de cálculo (Reemplaza con el nombre exacto de tu hoja)
-    sheet = client.open("Leads_Micropilotes").sheet1 
-    return sheet
+# Inicializar estado de sesión si no existe
+if 'usuario_registrado' not in st.session_state:
+    st.session_state['usuario_registrado'] = False
 
-def guardar_lead(datos):
-    """Guarda una fila nueva en el Excel de Google"""
-    try:
-        sheet = conectar_google_sheets()
-        # Agregar fecha y hora
-        fila = [
-            str(datetime.datetime.now()),
-            datos['nombre'],
-            datos['empresa'],
-            datos['email'],
-            datos['cargo']
-        ]
-        sheet.append_row(fila)
-        return True
-    except Exception as e:
-        st.error(f"Error de conexión: {e}")
-        return False
-
-# ==============================================================================
-# 3. PANTALLA DE REGISTRO (TU CÓDIGO MODIFICADO)
-# ==============================================================================
 def mostrar_registro():
-    # Estilo para centrar verticalmente
-    st.markdown("""
-    <style>
-    div[data-testid="column"] { display: flex; flex-direction: column; justify-content: center; }
-    </style>
-    """, unsafe_allow_html=True)
-
-    # --- TU DISEÑO DE COLUMNAS ---
-    col_izq, col_der = st.columns([1, 1.5])
+    """Muestra la pantalla de bloqueo/registro"""
+    st.markdown("## 🔒 Acceso a Herramienta de Ingeniería")
+    st.info("Para acceder a la calculadora de optimización y huella de carbono, por favor regístrese.")
     
-    with col_izq:
-        # Imagen de ejemplo (Puedes poner tu logo aquí)
-        st.image("https://via.placeholder.com/400x300?text=Reporte+Ingenieria+Geo", use_column_width=True)
+    with st.form("formulario_registro"):
+        col1, col2 = st.columns(2)
+        nombre = col1.text_input("Nombre Completo")
+        empresa = col2.text_input("Empresa / Universidad")
+        email = st.text_input("Correo Electrónico Corporativo")
+        cargo = st.selectbox("Cargo", ["Ingeniero Geotecnista", "Ingeniero Estructural", "Constructor/Residente", "Estudiante", "Otro"])
         
-        st.markdown("""
-        ### 🚀 Potencia tus diseños
+        # Checkbox de privacidad (Importante para GDPR/Leyes de datos)
+        acepto = st.checkbox("Acepto recibir información técnica relacionada.")
         
-        Al registrarte obtendrás acceso inmediato a:
+        submit = st.form_submit_button("🚀 INGRESAR AL SISTEMA")
         
-        * ✅ **Optimizador de Costos** para micropilotes.
-        * ✅ **Cálculo de Huella de Carbono** ($CO_2e$).
-        * ✅ **Análisis de Transferencia de Carga**.
-        * ✅ **Exportación de Memorias** en CSV.
-        
-        *Únete a más de 500 ingenieros que optimizan sus cimentaciones.*
-        """)
-
-    with col_der:
-        st.markdown("## 🔓 Desbloquear Herramienta")
-        st.write("Ingresa tus datos profesionales para acceder a la calculadora.")
-        
-        with st.form("formulario_registro"):
-            nombre = st.text_input("Nombre Completo", placeholder="Ej. Ing. Juan Pérez")
-            empresa = st.text_input("Empresa / Universidad")
-            email = st.text_input("Correo Corporativo")
-            cargo = st.selectbox("Cargo / Perfil", ["Ingeniero Geotecnista", "Ingeniero Estructural", "Constructor", "Estudiante", "Otro"])
-            
-            acepto = st.checkbox("Acepto compartir mi contacto para fines profesionales.")
-            
-            submitted = st.form_submit_button("INGRESAR AL SISTEMA", use_container_width=True, type="primary")
-            
-            if submitted:
-                if not nombre or not email:
-                    st.warning("⚠️ Por favor completa Nombre y Correo.")
-                elif not acepto:
-                    st.warning("⚠️ Debes aceptar los términos para continuar.")
-                else:
-                    # Guardar datos en sesión
-                    st.session_state['usuario_registrado'] = True
-                    st.session_state['usuario_nombre'] = nombre
-                    
-                    # Guardar en Google Sheets (Silenciosamente)
-                    datos_usuario = {
-                        "nombre": nombre, "empresa": empresa,
-                        "email": email, "cargo": cargo
-                    }
-                    
-                    with st.spinner("Validando acceso..."):
-                        exito = guardar_lead(datos_usuario)
-                    
-                    if exito:
-                        st.success("¡Registro exitoso!")
-                        st.rerun()
-                    else:
-                        st.error("Error al conectar con la base de datos. Intente más tarde.")
-
+        if submit:
+            # Validaciones simples
+            if not nombre or not email:
+                st.error("Por favor ingrese al menos su Nombre y Correo.")
+            elif "@" not in email or "." not in email:
+                st.error("El correo electrónico no parece válido.")
+            elif not acepto:
+                st.warning("Debe aceptar los términos para continuar.")
+            else:
+                # --- AQUÍ GUARDARÍAS LOS DATOS ---
+                # En una app real, aquí enviarías los datos a una base de datos (Google Sheets, Firebase, SQL)
+                # Por ahora, solo simulamos el éxito.
+                st.session_state['usuario_registrado'] = True
+                st.session_state['datos_usuario'] = {'nombre': nombre, 'email': email}
+                st.success(f"¡Bienvenido, {nombre}! Cargando sistema...")
+                st.rerun() # Recargar la página para mostrar la app
 # ==============================================================================
 # 4. APLICACIÓN PRINCIPAL (EL PREMIO)
 # ==============================================================================
@@ -582,3 +527,4 @@ if st.session_state['usuario_registrado']:
     app_principal()
 else:
     mostrar_registro()
+
