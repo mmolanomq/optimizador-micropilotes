@@ -106,7 +106,7 @@ DIAMETROS_COM = {0.100: 1.00, 0.115: 0.95, 0.150: 0.90, 0.200: 0.85}
 LISTA_D = sorted(list(DIAMETROS_COM.keys()))
 
 # Restricciones de búsqueda
-MIN_MICROS = 3
+MIN_MICROS = 1
 MAX_MICROS = 15
 RANGO_L = range(5, 36) # Buscamos de 5m hasta 35m
 COSTO_PERF_BASE = 100
@@ -498,6 +498,7 @@ if st.session_state['usuario_registrado']:
     app_principal()
 else:
     mostrar_registro()
+
 
 
 
