@@ -108,7 +108,7 @@ LISTA_D = sorted(list(DIAMETROS_COM.keys()))
 # Restricciones de búsqueda
 MIN_MICROS = 1
 MAX_MICROS = 15
-RANGO_L = range(5, 36) # Buscamos de 5m hasta 35m
+RANGO_L = range(5, 60) # Buscamos de 5m hasta 35m
 COSTO_PERF_BASE = 100
 
 # Factores Ambientales
@@ -498,6 +498,7 @@ if st.session_state['usuario_registrado']:
     app_principal()
 else:
     mostrar_registro()
+
 
 
 
